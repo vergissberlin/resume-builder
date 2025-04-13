@@ -9,7 +9,7 @@ Builds a resume from Markdown File in your repository.
 ```markdown
 # Resume
 
-Hi, I am a software engineer.
+Hi 🖖, I am a software engineer.
 
 ## Experience
 
