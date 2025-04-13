@@ -19,7 +19,8 @@ jobs:
     strategy:
       matrix:
         format: ${{ fromJson(inputs.formats) }}
-
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -40,6 +41,8 @@ jobs:
   release:
     needs: build-and-release
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
