@@ -1,0 +1,77 @@
+name: Reusable Resume Builder
+
+on:
+  workflow_call:
+    inputs:
+      filename:
+        required: true
+        type: string
+      formats:
+        required: true
+        type: string
+      tag_name:
+        required: true
+        type: string
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        format: ${{ fromJson(inputs.formats) }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Create folders
+        run: mkdir -p Results Temp
+
+      - name: Build ${{ matrix.format }} with Docker
+        run: |
+          ./Scripts/build.sh ${{ matrix.format }}
+
+      - name: Upload ${{ matrix.format }} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resume-${{ matrix.format }}
+          path: Results/${{ inputs.filename }}.${{ matrix.format }}
+
+  release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: Results
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          release_name: Release ${{ inputs.tag_name }}
+          body: Generated with reusable workflow
+
+      - name: Upload release assets
+        run: |
+          for ext in ${{ inputs.formats }}; do
+            path="Results/${{ inputs.filename }}.$ext"
+            if [[ -f "$path" ]]; then
+              echo "Uploading $path"
+              curl -sSL -X POST \
+                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/$ext" \
+                --data-binary @"$path" \
+                "${{ steps.create_release.outputs.upload_url }}?name=${{ inputs.filename }}.$ext"
+            fi
+          done
